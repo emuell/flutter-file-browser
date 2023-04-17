@@ -53,6 +53,7 @@ class Demo extends StatelessWidget {
           if (data != null) {
             final controller = FileBrowserController(fs: fs);
             controller.updateRoots(data);
+            controller.showDirectoriesFirst(true);
             return FileBrowser(controller: controller);
           }
         }
@@ -64,9 +65,14 @@ class Demo extends StatelessWidget {
   Future<List<FileSystemEntryStat>?> checkAndRequestPermission(
       LocalFileSystem fs) async {
     var entry = FileSystemEntry.blank();
-    if (Platform.isLinux || Platform.isMacOS) {
-      entry = new FileSystemEntry(
-          name: '/', path: '/', relativePath: '/', isDirectory: true);
+    if (Platform.isWindows) {
+      var home = Platform.environment['UserProfile'] ?? "";
+      entry = FileSystemEntry(
+          name: 'HOME', path: home, relativePath: home, isDirectory: true);
+    } else if (Platform.isLinux || Platform.isMacOS) {
+      var home = Platform.environment['HOME'] ?? "";
+      entry = FileSystemEntry(
+          name: 'HOME', path: home, relativePath: home, isDirectory: true);
     } else if (Platform.isAndroid || Platform.isIOS) {
       var status = await Permission.storage.status;
       if (status.isDenied) {
@@ -82,7 +88,7 @@ class Demo extends StatelessWidget {
         final name = path.basename(dir.path);
         final relativePath = name;
         final dirPath = dir.path;
-        final entry = new FileSystemEntry(
+        final entry = FileSystemEntry(
             name: name,
             path: dirPath,
             relativePath: relativePath,
