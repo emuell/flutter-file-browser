@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:file_browser/controllers/file_browser.dart';
 import 'package:file_browser/file_browser.dart';
@@ -66,13 +67,28 @@ class Demo extends StatelessWidget {
       LocalFileSystem fs) async {
     var entry = FileSystemEntry.blank();
     if (Platform.isWindows) {
-      var home = Platform.environment['UserProfile'] ?? "";
-      entry = FileSystemEntry(
-          name: 'HOME', path: home, relativePath: home, isDirectory: true);
+      Future<Iterable<String>> getDrives() async => LineSplitter.split(
+              (await Process.run('wmic', ['logicaldisk', 'get', 'caption'],
+                      stdoutEncoding: const SystemEncoding()))
+                  .stdout as String)
+          .map((string) => string.trim())
+          .where((string) => string.isNotEmpty)
+          .skip(1);
+      var drives = await getDrives();
+      var driveEntries = await Future.wait(drives.map((path) async {
+        final entry = FileSystemEntry(
+            name: path, path: path, relativePath: path, isDirectory: true);
+        try {
+          return await fs.stat(entry);
+        } catch (_) {
+          return FileSystemEntryStat(
+              entry: entry, lastModified: 0, size: 0, mode: 0);
+        }
+      }));
+      return driveEntries;
     } else if (Platform.isLinux || Platform.isMacOS) {
-      var home = Platform.environment['HOME'] ?? "";
       entry = FileSystemEntry(
-          name: 'HOME', path: home, relativePath: home, isDirectory: true);
+          name: 'HOME', path: '/', relativePath: '/', isDirectory: true);
     } else if (Platform.isAndroid || Platform.isIOS) {
       var status = await Permission.storage.status;
       if (status.isDenied) {
