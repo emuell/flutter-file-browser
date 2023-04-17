@@ -1,6 +1,8 @@
-import 'package:file_browser/filesystem_interface.dart';
 import 'package:get/get.dart';
 import 'package:path/path.dart' as path;
+import "package:collection/collection.dart";
+
+import 'package:file_browser/filesystem_interface.dart';
 
 enum Layout { LIST_VIEW, GRID_VIEW }
 
@@ -39,7 +41,7 @@ class FileBrowserController extends GetxController {
           return 1;
         }
       }
-      return a.entry.name.compareTo(b.entry.name);
+      return compareAsciiLowerCaseNatural(a.entry.name, b.entry.name);
     });
     return contents;
   }
