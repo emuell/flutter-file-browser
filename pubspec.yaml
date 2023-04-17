@@ -9,11 +9,13 @@ environment:
 
 dependencies:
   chunked_stream: ^1.4.1
+  collection: ^1.17.0
   filesize: ^2.0.1
   flutter:
     sdk: flutter
   get: ^4.1.4
-  image: ^3.0.2
+  image: ^4.0.15
+  path: ^1.8.2
   intl: ^0.17.0
 
 dev_dependencies:
