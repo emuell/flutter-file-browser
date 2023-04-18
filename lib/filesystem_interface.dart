@@ -103,7 +103,7 @@ abstract class FileSystemInterface {
   Future<Widget> getThumbnail(FileSystemEntry entry,
       {double? width, double? height}) async {
     if (entry.isDirectory) {
-      return Icon(Icons.folder_outlined, size: height, color: Colors.grey);
+      return Icon(Icons.folder, size: height, color: Colors.grey);
     }
     return Icon(Icons.description, size: height, color: Colors.grey);
   }
