@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:file_browser/controllers/file_browser.dart';
 import 'package:file_browser/file_browser.dart';
 import 'package:file_browser/filesystem_interface.dart';
+import 'package:file_browser/list_view.dart';
 import 'package:file_browser/local_filesystem.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
@@ -13,36 +14,33 @@ import 'package:permission_handler/permission_handler.dart';
 FileSystemEntryStat? rootEntry;
 
 void main() async {
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({Key? key}) : super(key: key);
+
   // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-        title: 'FileBrowser Demo',
-        theme: ThemeData(
-          // This is the theme of your application.
-          //
-          // Try running your application with "flutter run". You'll see the
-          // application has a blue toolbar. Then, without quitting the app, try
-          // changing the primarySwatch below to Colors.green and then invoke
-          // "hot reload" (press "r" in the console where you ran "flutter run",
-          // or simply save your changes to "hot reload" in a Flutter IDE).
-          // Notice that the counter didn't reset back to zero; the application
-          // is not restarted.
-          primarySwatch: Colors.blue,
-        ),
-        home: Scaffold(
-            appBar: AppBar(title: Text('File Browser')),
-            backgroundColor: Colors.white,
-            body: Demo()));
+      title: 'FileBrowser Demo',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: Scaffold(
+        appBar: AppBar(title: const Text('File Browser')),
+        backgroundColor: Colors.white,
+        body: Demo(),
+      ),
+    );
   }
 }
 
 class Demo extends StatelessWidget {
   final fs = LocalFileSystem();
+
+  Demo({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +53,15 @@ class Demo extends StatelessWidget {
             final controller = FileBrowserController(fs: fs);
             controller.updateRoots(data);
             controller.showDirectoriesFirst(true);
-            return FileBrowser(controller: controller);
+            const style = ListViewStyle(
+              thumbnailPadding: 4,
+              thumbnailSize: 22,
+              padding: EdgeInsets.all(8),
+              textStyle: TextStyle(fontWeight: FontWeight.w400, fontSize: 13),
+              infoTextStyle:
+                  TextStyle(fontWeight: FontWeight.w200, fontSize: 11),
+            );
+            return FileBrowser(controller: controller, style: style);
           }
         }
         return Container();
