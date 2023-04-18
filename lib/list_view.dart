@@ -160,7 +160,7 @@ class ListViewLayout extends StatelessWidget {
               itemCount: data.length + (showParentEntry ? 1 : 0),
               padding: EdgeInsets.zero,
               itemBuilder: (context, index) {
-                FileSystemEntryStat? entry;
+                FileSystemEntryStat stats;
                 bool showInfo = true;
                 if (showParentEntry && index == 0) {
                   showInfo = false;
@@ -172,50 +172,62 @@ class ListViewLayout extends StatelessWidget {
                       isDirectory: true,
                       path: parentPath,
                       relativePath: path.dirname(rootEntry.relativePath));
-                  entry = FileSystemEntryStat(
+                  stats = FileSystemEntryStat(
                       entry: parentEntry, lastModified: 0, size: 0, mode: 0);
                 } else {
                   final idx = index - (showParentEntry ? 1 : 0);
-                  entry = data[idx];
-                  showInfo = !controller.roots.contains(entry);
+                  stats = data[idx];
+                  showInfo = !controller.roots.contains(stats);
                 }
-                return Obx(() => InkWell(
+                return Obx(() {
+                  final listItem = InkWell(
                     splashColor: controller.selected.isEmpty
                         ? Theme.of(context).highlightColor
                         : Colors.transparent,
                     onTap: () {
-                      if (entry!.entry.isDirectory) {
+                      if (stats.entry.isDirectory) {
                         if (showParentEntry &&
                             index == 0 &&
                             controller.rootPathsSet
-                                .contains(entry.entry.path)) {
+                                .contains(stats.entry.path)) {
                           controller.currentDir.value = FileSystemEntry.blank();
-                        } else if (entry.entry.isDirectory) {
-                          controller.currentDir.value = entry.entry;
+                        } else if (stats.entry.isDirectory) {
+                          controller.currentDir.value = stats.entry;
                         }
                       } else {
-                        controller.toggleSelect(entry.entry);
-                      }
-                      if (controller.selected.isNotEmpty) {
-                        // controller.toggleSelect(entry!.entry);
-                      } else {
-                        //
+                        controller.toggleSelect(stats.entry);
                       }
                     },
                     onLongPress: () {
-                      controller.toggleSelect(entry!.entry);
+                      controller.toggleSelect(stats.entry);
                     },
                     child: Container(
-                        color: controller.selected.contains(entry!.entry)
-                            ? Theme.of(context).highlightColor
-                            : Colors.transparent,
-                        margin: EdgeInsets.zero,
-                        padding: EdgeInsets.zero,
-                        child: ListViewEntry(
-                            fs: controller.fs,
-                            entry: entry,
-                            style: listStyle,
-                            showInfo: showInfo))));
+                      color: controller.selected.contains(stats.entry)
+                          ? Theme.of(context).highlightColor
+                          : Colors.transparent,
+                      margin: EdgeInsets.zero,
+                      padding: EdgeInsets.zero,
+                      child: ListViewEntry(
+                          fs: controller.fs,
+                          entry: stats,
+                          style: listStyle,
+                          showInfo: showInfo),
+                    ),
+                  );
+                  if (!stats.entry.isDirectory) {
+                    return Draggable<FileSystemEntry>(
+                      data: stats.entry.isDirectory ? null : stats.entry,
+                      feedbackOffset: const Offset(0, 10),
+                      feedback: Text(
+                        stats.entry.name,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                      child: listItem,
+                    );
+                  } else {
+                    return listItem;
+                  }
+                });
               },
               separatorBuilder: (context, index) => const Divider(height: 1.0),
             );

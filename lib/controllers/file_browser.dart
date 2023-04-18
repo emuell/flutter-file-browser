@@ -17,6 +17,7 @@ class FileBrowserController extends GetxController {
   final currentDir = Rx<FileSystemEntry>(FileSystemEntry.blank());
   final showDirectoriesFirst = RxBool(false);
   final showFileExtensions = RxList([]);
+  final allowMultiSelection = RxBool(false);
 
   // selection changes
   SelectionCallback? onSelectionUpdate;
@@ -63,6 +64,9 @@ class FileBrowserController extends GetxController {
     if (contains) {
       selected.remove(entry);
     } else {
+      if (!allowMultiSelection.value) {
+        selected.clear();
+      }
       selected.add(entry);
     }
     if (onSelectionUpdate != null) {
