@@ -68,11 +68,18 @@ class LocalFileSystem extends FileSystemInterface {
               name: name, path: file.path, relativePath: relativePath)));
         }
       } catch (e) {
-        developer.log('Failed to access file or directory: $e');
+          developer.log('Failed to access file or directory: $e');
+          // continue without error...
       }
     },
-        // should also register onError
-        onDone: () => completer.complete(files));
+      onDone: () {
+        completer.complete(files);
+      },
+      onError: (e) {
+        developer.log('Failed to access files or directorys: $e');
+        completer.completeError(e);
+      },
+    );
     return completer.future;
   }
 

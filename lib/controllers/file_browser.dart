@@ -35,9 +35,11 @@ class FileBrowserController extends GetxController {
     // apply filters
     if (showFileExtensions.isNotEmpty) {
       contents.retainWhere((element) {
+        if (element.entry.isDirectory) {
+          return true;
+        }
         for (var filter in showFileExtensions) {
-          if (element.entry.isDirectory ||
-              element.entry.path.toLowerCase().endsWith(filter.toLowerCase())) {
+          if (element.entry.path.toLowerCase().endsWith(filter.toLowerCase())) {
             return true;
           }
         }
