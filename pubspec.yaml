@@ -1,5 +1,5 @@
 name: file_browser
-description: A new Flutter package project.
+description: A Flutter file system directory browser widget. 
 version: 0.0.1
 homepage:
 
@@ -13,14 +13,14 @@ dependencies:
   filesize: ^2.0.1
   flutter:
     sdk: flutter
-  get: ^4.1.4
+  get: ^4.6.5
   image: ^4.0.15
   path: ^1.8.2
   intl: ^0.17.0
 
 dev_dependencies:
-  flutter_lints: ^2.0.1
   flutter_test:
     sdk: flutter
+  flutter_lints: ^2.0.1
 
 flutter:
