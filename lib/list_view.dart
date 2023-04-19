@@ -1,5 +1,3 @@
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:filesize/filesize.dart';
 import 'package:get/get.dart';
@@ -92,43 +90,41 @@ class ListViewEntry extends StatelessWidget {
                 height: style.thumbnailSize,
               )),
           Flexible(
-            child: Container(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Flexible(
-                    child: Text(
-                      entry.entry.name,
-                      style: style.textStyle,
-                    ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(
+                    entry.entry.name,
+                    style: style.textStyle,
                   ),
-                  if (showInfo)
-                    Flexible(
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Text(
-                            filesize(entry.size, 0),
-                            style: style.infoTextStyle,
+                ),
+                if (showInfo)
+                  Flexible(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          filesize(entry.size, 0),
+                          style: style.infoTextStyle,
+                        ),
+                        SizedBox(
+                          width: 2 * (style.infoTextStyle.wordSpacing ?? 8.0),
+                        ),
+                        Text(
+                          DateFormat('yyyy-MM-dd').format(
+                            DateTime.fromMillisecondsSinceEpoch(
+                                entry.lastModified),
                           ),
-                          SizedBox(
-                            width: 2 * (style.infoTextStyle.wordSpacing ?? 8.0),
-                          ),
-                          Text(
-                            DateFormat('yyyy-MM-dd').format(
-                              DateTime.fromMillisecondsSinceEpoch(
-                                  entry.lastModified),
-                            ),
-                            style: style.infoTextStyle,
-                          )
-                        ],
-                      ),
-                    )
-                ],
-              ),
+                          style: style.infoTextStyle,
+                        )
+                      ],
+                    ),
+                  )
+              ],
             ),
           )
         ],
@@ -148,12 +144,11 @@ class ListViewLayout extends StatelessWidget {
     required this.controller,
     this.listStyle = const ListViewStyle(),
   }) : super(key: key) {
-    controller.sortedListing().then((value) {
-      assert(value.isNotEmpty);
+    // fetch directory listing
+    controller.fetchDirectoryEntries().then((value) {
       entries.assignAll(value);
-      log('Got new entries: #${entries.length}');
     }).catchError((e) {
-      entriesError.value = e.toString();
+      entriesError.value = 'Failed to fetch files: ${e.toString()}';
     });
   }
 
@@ -161,17 +156,26 @@ class ListViewLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(
       () {
-        log('Display entries: #${entries.length}');
-        final data = entries;
+        // show fetch errors
+        if (entriesError.isNotEmpty) {
+          return Center(
+            child: Text(
+              entriesError.value,
+              style: listStyle.textStyle
+                  .copyWith(color: Theme.of(context).colorScheme.error),
+            ),
+          );
+        }
+        // show contents
         final rootDirectory = controller.currentDir.value;
         final showParentEntry = !controller.isRootEntry(rootDirectory);
         return ListView.separated(
           shrinkWrap: true,
-          itemCount: data.length + (showParentEntry ? 1 : 0),
+          itemCount: entries.length + (showParentEntry ? 1 : 0),
           padding: EdgeInsets.zero,
           itemBuilder: (context, index) {
-            FileSystemEntryStat stats;
             bool showInfo = true;
+            FileSystemEntryStat itemfileStat;
             if (showParentEntry && index == 0) {
               showInfo = false;
               var parentPath = path.dirname(rootDirectory.path);
@@ -182,55 +186,59 @@ class ListViewLayout extends StatelessWidget {
                   isDirectory: true,
                   path: parentPath,
                   relativePath: path.dirname(rootDirectory.relativePath));
-              stats = FileSystemEntryStat(
+              itemfileStat = FileSystemEntryStat(
                   entry: parentEntry, lastModified: 0, size: 0, mode: 0);
             } else {
               final idx = index - (showParentEntry ? 1 : 0);
-              stats = data[idx];
-              showInfo = !controller.roots.contains(stats);
+              itemfileStat = entries[idx];
+              showInfo = !controller.roots.contains(itemfileStat);
             }
             return Obx(
               () {
                 final listItem = InkWell(
-                  key: Key(stats.entry.path),
+                  key: Key(itemfileStat.entry.path),
                   splashColor: controller.selectedEntries.isEmpty
                       ? Theme.of(context).highlightColor
                       : Colors.transparent,
                   onTap: () {
-                    if (stats.entry.isDirectory) {
+                    if (itemfileStat.entry.isDirectory) {
                       if (showParentEntry &&
                           index == 0 &&
-                          controller.rootPathsSet.contains(stats.entry.path)) {
+                          controller.rootPathsSet
+                              .contains(itemfileStat.entry.path)) {
                         controller.currentDir.value = FileSystemEntry.blank();
-                      } else if (stats.entry.isDirectory) {
-                        controller.currentDir.value = stats.entry;
+                      } else if (itemfileStat.entry.isDirectory) {
+                        controller.currentDir.value = itemfileStat.entry;
                       }
                     } else {
-                      controller.toggleSelect(stats.entry);
+                      controller.toggleSelect(itemfileStat.entry);
                     }
                   },
                   onLongPress: () {
-                    controller.toggleSelect(stats.entry);
+                    controller.toggleSelect(itemfileStat.entry);
                   },
                   child: Container(
-                    color: controller.selectedEntries.contains(stats.entry)
-                        ? Theme.of(context).highlightColor
-                        : Colors.transparent,
+                    color:
+                        controller.selectedEntries.contains(itemfileStat.entry)
+                            ? Theme.of(context).highlightColor
+                            : Colors.transparent,
                     margin: EdgeInsets.zero,
                     padding: EdgeInsets.zero,
                     child: ListViewEntry(
                         fs: controller.fs,
-                        entry: stats,
+                        entry: itemfileStat,
                         style: listStyle,
                         showInfo: showInfo),
                   ),
                 );
-                if (!stats.entry.isDirectory) {
+                if (!itemfileStat.entry.isDirectory) {
                   return Draggable<FileSystemEntry>(
-                    data: stats.entry.isDirectory ? null : stats.entry,
+                    data: itemfileStat.entry.isDirectory
+                        ? null
+                        : itemfileStat.entry,
                     feedbackOffset: const Offset(0, 10),
                     feedback: Text(
-                      stats.entry.name,
+                      itemfileStat.entry.name,
                       style: Theme.of(context).textTheme.bodyMedium,
                     ),
                     child: listItem,
