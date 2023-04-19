@@ -7,9 +7,12 @@ import 'package:file_browser/filesystem_interface.dart';
 import 'package:file_browser/list_view.dart';
 import 'package:file_browser/local_filesystem.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:permission_handler/permission_handler.dart';
+
+const audioFileExtensions = ['.wav', '.mp3', '.flac', '.aif', '.aiff'];
 
 FileSystemEntryStat? rootEntry;
 
@@ -39,29 +42,62 @@ class MyApp extends StatelessWidget {
 
 class Demo extends StatelessWidget {
   final fs = LocalFileSystem();
+  late final FileBrowserController controller;
 
-  Demo({Key? key}) : super(key: key);
+  Demo({Key? key}) : super(key: key) {
+    controller = FileBrowserController(fs: fs);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
+    return FutureBuilder<List<FileSystemEntryStat>?>(
       future: checkAndRequestPermission(fs),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
-          final data = snapshot.data as List<FileSystemEntryStat>?;
+          final data = snapshot.data;
           if (data != null) {
-            final controller = FileBrowserController(fs: fs);
             controller.updateRoots(data);
             controller.showDirectoriesFirst(true);
-            const style = ListViewStyle(
-              thumbnailPadding: 4,
-              thumbnailSize: 22,
-              padding: EdgeInsets.all(8),
-              textStyle: TextStyle(fontWeight: FontWeight.w400, fontSize: 13),
-              infoTextStyle:
-                  TextStyle(fontWeight: FontWeight.w200, fontSize: 11),
+            final style = ListViewStyle(
+              thumbnailPadding: 8,
+              thumbnailSize: 32,
+              padding: const EdgeInsets.all(8),
+              textStyle: Theme.of(context).textTheme.bodyMedium!,
+              infoTextStyle: Theme.of(context).textTheme.bodySmall!,
             );
-            return FileBrowser(controller: controller, style: style);
+            final browser = Expanded(
+              child: FileBrowser(controller: controller, style: style),
+            );
+            final browserOptionsRow = Obx(
+              () => Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.audio_file,
+                      size: 22,
+                    ),
+                    splashRadius: 22,
+                    color: controller.showFileExtensions.isNotEmpty
+                        ? Theme.of(context).colorScheme.secondary
+                        : null,
+                    tooltip: 'Show audio files only',
+                    onPressed: () {
+                      if (controller.showFileExtensions.isEmpty) {
+                        controller.showFileExtensions
+                            .assignAll(audioFileExtensions);
+                      } else {
+                        controller.showFileExtensions.assignAll([]);
+                      }
+                      controller.update();
+                    },
+                  ),
+                ],
+              ),
+            );
+            return Column(
+              children: [browser, browserOptionsRow],
+            );
           }
         }
         return Container();
