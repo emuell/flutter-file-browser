@@ -51,12 +51,10 @@ class LocalFileSystem extends FileSystemInterface {
   }
 
   @override
-  Future<List<FileSystemEntryStat>> listContents(FileSystemEntry entry) {
+  Future<List<FileSystemEntryStat>> listContents(FileSystemEntry entry) async {
     var files = <FileSystemEntryStat>[];
-    var completer = Completer<List<FileSystemEntryStat>>();
     final dir = Directory(entry.path);
-    var lister = dir.list(recursive: false);
-    lister.listen((file) async {
+    await for (var file in dir.list(recursive: false)) {
       final name = path.basename(file.path);
       final relativePath = path.join(entry.relativePath, name);
       try {
@@ -68,19 +66,11 @@ class LocalFileSystem extends FileSystemInterface {
               name: name, path: file.path, relativePath: relativePath)));
         }
       } catch (e) {
-          developer.log('Failed to access file or directory: $e');
-          // continue without error...
+        // skip this file, warn and continue...
+        developer.log('Failed to access file or directory: $e');
       }
-    },
-      onDone: () {
-        completer.complete(files);
-      },
-      onError: (e) {
-        developer.log('Failed to access files or directorys: $e');
-        completer.completeError(e);
-      },
-    );
-    return completer.future;
+    }
+    return files;
   }
 
   @override
