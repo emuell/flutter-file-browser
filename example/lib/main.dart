@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
 import 'package:permission_handler/permission_handler.dart';
 
+const imageFileExtensions = ['.png', '.jpg', '.jpeg'];
 const audioFileExtensions = ['.wav', '.mp3', '.flac', '.aif', '.aiff'];
 
 FileSystemEntryStat? rootEntry;
@@ -45,7 +46,10 @@ class Demo extends StatelessWidget {
   late final FileBrowserController controller;
 
   Demo({Key? key}) : super(key: key) {
+    // create controller configure it
     controller = FileBrowserController(fs: fs);
+    controller.allowMultiSelection.value = true;
+    controller.showDirectoriesFirst.value = true;
   }
 
   @override
@@ -54,10 +58,9 @@ class Demo extends StatelessWidget {
       future: checkAndRequestPermission(fs),
       builder: (context, snapshot) {
         if (snapshot.hasData) {
-          final data = snapshot.data;
-          if (data != null) {
-            controller.updateRoots(data);
-            controller.showDirectoriesFirst(true);
+          final rootFolders = snapshot.data;
+          if (rootFolders != null) {
+            controller.updateRoots(rootFolders);
             final style = ListViewStyle(
               thumbnailPadding: 8,
               thumbnailSize: 32,
@@ -68,28 +71,51 @@ class Demo extends StatelessWidget {
             final browser = Expanded(
               child: FileBrowser(controller: controller, style: style),
             );
+            const buttonSize = 22.0;
             final browserOptionsRow = Obx(
               () => Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisAlignment: MainAxisAlignment.start,
                 children: [
                   IconButton(
                     icon: const Icon(
-                      Icons.audio_file,
-                      size: 22,
+                      Icons.image,
+                      size: buttonSize,
                     ),
-                    splashRadius: 22,
-                    color: controller.showFileExtensions.isNotEmpty
+                    splashRadius: buttonSize,
+                    color: controller.showFileExtensions.toString() ==
+                            imageFileExtensions.toString()
+                        ? Theme.of(context).colorScheme.secondary
+                        : null,
+                    tooltip: 'Show image files only',
+                    onPressed: () {
+                      if (controller.showFileExtensions.toString() !=
+                          imageFileExtensions.toString()) {
+                        controller.showFileExtensions
+                            .assignAll(imageFileExtensions);
+                      } else {
+                        controller.showFileExtensions.clear();
+                      }
+                    },
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.audio_file,
+                      size: buttonSize,
+                    ),
+                    splashRadius: buttonSize,
+                    color: controller.showFileExtensions.toString() ==
+                            audioFileExtensions.toString()
                         ? Theme.of(context).colorScheme.secondary
                         : null,
                     tooltip: 'Show audio files only',
                     onPressed: () {
-                      if (controller.showFileExtensions.isEmpty) {
+                      if (controller.showFileExtensions.toString() !=
+                          audioFileExtensions.toString()) {
                         controller.showFileExtensions
                             .assignAll(audioFileExtensions);
                       } else {
-                        controller.showFileExtensions.assignAll([]);
+                        controller.showFileExtensions.clear();
                       }
-                      controller.update();
                     },
                   ),
                 ],
