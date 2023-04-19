@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:filesize/filesize.dart';
 import 'package:get/get.dart';
@@ -138,102 +140,110 @@ class ListViewEntry extends StatelessWidget {
 class ListViewLayout extends StatelessWidget {
   final FileBrowserController controller;
   final ListViewStyle listStyle;
-  final FileSystemEntry rootEntry;
+  final entries = RxList<FileSystemEntryStat>([]);
+  final entriesError = RxString('');
 
-  const ListViewLayout({
+  ListViewLayout({
     Key? key,
     required this.controller,
-    required this.rootEntry,
     this.listStyle = const ListViewStyle(),
-  }) : super(key: key);
+  }) : super(key: key) {
+    controller.sortedListing().then((value) {
+      assert(value.isNotEmpty);
+      entries.assignAll(value);
+      log('Got new entries: #${entries.length}');
+    }).catchError((e) {
+      entriesError.value = e.toString();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-        future: controller.sortedListing(rootEntry),
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            final data = snapshot.data as List<FileSystemEntryStat>;
-            final showParentEntry = !controller.isRootEntry(rootEntry);
-            return ListView.separated(
-              shrinkWrap: true,
-              itemCount: data.length + (showParentEntry ? 1 : 0),
-              padding: EdgeInsets.zero,
-              itemBuilder: (context, index) {
-                FileSystemEntryStat stats;
-                bool showInfo = true;
-                if (showParentEntry && index == 0) {
-                  showInfo = false;
-                  var parentPath = path.dirname(rootEntry.path);
-                  // Check if this is root. If it is, then we end up with root again
-                  parentPath = parentPath == rootEntry.path ? '' : parentPath;
-                  final parentEntry = FileSystemEntry(
-                      name: '..',
-                      isDirectory: true,
-                      path: parentPath,
-                      relativePath: path.dirname(rootEntry.relativePath));
-                  stats = FileSystemEntryStat(
-                      entry: parentEntry, lastModified: 0, size: 0, mode: 0);
-                } else {
-                  final idx = index - (showParentEntry ? 1 : 0);
-                  stats = data[idx];
-                  showInfo = !controller.roots.contains(stats);
-                }
-                return Obx(() {
-                  final listItem = InkWell(
-                    splashColor: controller.selected.isEmpty
+    return Obx(
+      () {
+        log('Display entries: #${entries.length}');
+        final data = entries;
+        final rootDirectory = controller.currentDir.value;
+        final showParentEntry = !controller.isRootEntry(rootDirectory);
+        return ListView.separated(
+          shrinkWrap: true,
+          itemCount: data.length + (showParentEntry ? 1 : 0),
+          padding: EdgeInsets.zero,
+          itemBuilder: (context, index) {
+            FileSystemEntryStat stats;
+            bool showInfo = true;
+            if (showParentEntry && index == 0) {
+              showInfo = false;
+              var parentPath = path.dirname(rootDirectory.path);
+              // Check if this is root. If it is, then we end up with root again
+              parentPath = parentPath == rootDirectory.path ? '' : parentPath;
+              final parentEntry = FileSystemEntry(
+                  name: '..',
+                  isDirectory: true,
+                  path: parentPath,
+                  relativePath: path.dirname(rootDirectory.relativePath));
+              stats = FileSystemEntryStat(
+                  entry: parentEntry, lastModified: 0, size: 0, mode: 0);
+            } else {
+              final idx = index - (showParentEntry ? 1 : 0);
+              stats = data[idx];
+              showInfo = !controller.roots.contains(stats);
+            }
+            return Obx(
+              () {
+                final listItem = InkWell(
+                  key: Key(stats.entry.path),
+                  splashColor: controller.selectedEntries.isEmpty
+                      ? Theme.of(context).highlightColor
+                      : Colors.transparent,
+                  onTap: () {
+                    if (stats.entry.isDirectory) {
+                      if (showParentEntry &&
+                          index == 0 &&
+                          controller.rootPathsSet.contains(stats.entry.path)) {
+                        controller.currentDir.value = FileSystemEntry.blank();
+                      } else if (stats.entry.isDirectory) {
+                        controller.currentDir.value = stats.entry;
+                      }
+                    } else {
+                      controller.toggleSelect(stats.entry);
+                    }
+                  },
+                  onLongPress: () {
+                    controller.toggleSelect(stats.entry);
+                  },
+                  child: Container(
+                    color: controller.selectedEntries.contains(stats.entry)
                         ? Theme.of(context).highlightColor
                         : Colors.transparent,
-                    onTap: () {
-                      if (stats.entry.isDirectory) {
-                        if (showParentEntry &&
-                            index == 0 &&
-                            controller.rootPathsSet
-                                .contains(stats.entry.path)) {
-                          controller.currentDir.value = FileSystemEntry.blank();
-                        } else if (stats.entry.isDirectory) {
-                          controller.currentDir.value = stats.entry;
-                        }
-                      } else {
-                        controller.toggleSelect(stats.entry);
-                      }
-                    },
-                    onLongPress: () {
-                      controller.toggleSelect(stats.entry);
-                    },
-                    child: Container(
-                      color: controller.selected.contains(stats.entry)
-                          ? Theme.of(context).highlightColor
-                          : Colors.transparent,
-                      margin: EdgeInsets.zero,
-                      padding: EdgeInsets.zero,
-                      child: ListViewEntry(
-                          fs: controller.fs,
-                          entry: stats,
-                          style: listStyle,
-                          showInfo: showInfo),
+                    margin: EdgeInsets.zero,
+                    padding: EdgeInsets.zero,
+                    child: ListViewEntry(
+                        fs: controller.fs,
+                        entry: stats,
+                        style: listStyle,
+                        showInfo: showInfo),
+                  ),
+                );
+                if (!stats.entry.isDirectory) {
+                  return Draggable<FileSystemEntry>(
+                    data: stats.entry.isDirectory ? null : stats.entry,
+                    feedbackOffset: const Offset(0, 10),
+                    feedback: Text(
+                      stats.entry.name,
+                      style: Theme.of(context).textTheme.bodyMedium,
                     ),
+                    child: listItem,
                   );
-                  if (!stats.entry.isDirectory) {
-                    return Draggable<FileSystemEntry>(
-                      data: stats.entry.isDirectory ? null : stats.entry,
-                      feedbackOffset: const Offset(0, 10),
-                      feedback: Text(
-                        stats.entry.name,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      child: listItem,
-                    );
-                  } else {
-                    return listItem;
-                  }
-                });
+                } else {
+                  return listItem;
+                }
               },
-              separatorBuilder: (context, index) => const Divider(height: 1.0),
             );
-          } else {
-            return Container();
-          }
-        });
+          },
+          separatorBuilder: (context, index) => const Divider(height: 1.0),
+        );
+      },
+    );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:get/get.dart';
 import 'package:path/path.dart' as path;
 import "package:collection/collection.dart";
@@ -8,30 +10,37 @@ typedef SelectionCallback = Future<void> Function(
     FileSystemEntry entry, bool selected);
 
 class FileBrowserController extends GetxController {
-  // file root and entries
+  // file system
   final FileSystemInterface fs;
-  List<FileSystemEntryStat> roots = List<FileSystemEntryStat>.empty();
-  final rootPathsSet = <String>{};
 
-  // options
+  // file system root
+  get roots => _roots;
+  final List<FileSystemEntryStat> _roots = <FileSystemEntryStat>[];
+  get rootPathsSet => _rootPathsSet;
+  final _rootPathsSet = <String>{};
+
+  // current directory within root
   final currentDir = Rx<FileSystemEntry>(FileSystemEntry.blank());
-  final showDirectoriesFirst = RxBool(false);
-  final showFileExtensions = RxList([]);
+
+  // list and selection options
+  final showDirectoriesFirst = RxBool(true);
+  final showFileExtensions = RxList<String>([]);
   final allowMultiSelection = RxBool(false);
 
   // selection changes
-  SelectionCallback? onSelectionUpdate;
-  final selected = RxSet<FileSystemEntry>({});
+  final selectedEntries = RxSet<FileSystemEntry>({});
+  final SelectionCallback? onSelectionUpdate;
 
   FileBrowserController({required this.fs, this.onSelectionUpdate});
 
-  Future<List<FileSystemEntryStat>> sortedListing(FileSystemEntry entry) async {
-    if (isRootEntry(entry)) {
+  // sorted and possibly filtered entries of the current directory
+  Future<List<FileSystemEntryStat>> sortedListing() async {
+    if (isRootEntry(currentDir.value)) {
       // Root entry
       return roots;
     }
     // fetch entries
-    final contents = await fs.listContents(entry);
+    final contents = await fs.listContents(currentDir.value);
     // apply filters
     if (showFileExtensions.isNotEmpty) {
       contents.retainWhere((element) {
@@ -58,18 +67,19 @@ class FileBrowserController extends GetxController {
       }
       return compareAsciiLowerCaseNatural(a.entry.name, b.entry.name);
     });
+    log('New listing entries: #${contents.length}');
     return contents;
   }
 
   void toggleSelect(FileSystemEntry entry) async {
-    final contains = selected.contains(entry);
+    final contains = selectedEntries.contains(entry);
     if (contains) {
-      selected.remove(entry);
+      selectedEntries.remove(entry);
     } else {
       if (!allowMultiSelection.value) {
-        selected.clear();
+        selectedEntries.clear();
       }
-      selected.add(entry);
+      selectedEntries.add(entry);
     }
     if (onSelectionUpdate != null) {
       await onSelectionUpdate!(entry, !contains);
@@ -77,14 +87,14 @@ class FileBrowserController extends GetxController {
   }
 
   void updateRoots(List<FileSystemEntryStat> roots) {
-    this.roots = roots;
-    rootPathsSet.clear();
+    _roots.assignAll(roots);
+    _rootPathsSet.clear();
     for (var entry in roots) {
       final parent = path.dirname(entry.entry.path);
       // On Linux, parent of '/' is '/', which poses a problem since we have a fake root
       // To deal with this, we don't add '/' to rootPathsSet
       if (parent != '/') {
-        rootPathsSet.add(parent);
+        _rootPathsSet.add(parent);
       }
     }
   }

@@ -16,7 +16,7 @@ class FileBrowser extends StatelessWidget {
     Key? key,
     List<FileSystemEntryStat>? roots,
     FileBrowserController? controller,
-    ListViewStyle style = const ListViewStyle(),
+    ListViewStyle? style,
   }) : super(key: key) {
     if (controller != null) {
       this.controller = controller;
@@ -26,17 +26,26 @@ class FileBrowser extends StatelessWidget {
       }
       this.controller = FileBrowserController(fs: LocalFileSystem());
       this.controller.updateRoots(roots);
-      this.controller.showDirectoriesFirst.value = true;
     }
-    this.style = style;
+    if (style != null) {
+      this.style = style;
+    } else {
+      this.style = const ListViewStyle();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Obx(() {
+      // rebuild layout when sorting option and currentDir changes
+      [
+        controller.currentDir.value,
+        controller.showDirectoriesFirst.value,
+        controller.showFileExtensions.fold<String>(
+            '', (previousValue, element) => previousValue + element)
+      ];
       return ListViewLayout(
         controller: controller,
-        rootEntry: controller.currentDir.value,
         listStyle: style,
       );
     });
